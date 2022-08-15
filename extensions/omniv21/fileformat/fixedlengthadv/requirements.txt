@@ -1,0 +1,35 @@
+- records
+  - detection:
+     - by default: single line
+     - by rows: multile lines
+     - by header/footer pattern matching
+     - custom
+
+
+
+example:
+- https://stackoverflow.com/questions/29669004/how-to-handle-multi-line-fixed-length-file-with-beanio
+
+BBB001     000          000000
+BBB555     001          George
+BBB555     002          London
+BBB555     003          UK
+BBB555     999          000000
+BBB555     001          Jean
+BBB555     002          Paris
+BBB555     003          France
+BBB555     004          Europe
+BBB555     999          000000
+BBB999     000          000000
+
+header BBB001, footer: BBB999, but each record in middle is terminated by 2nd column being 999
+
+- https://stackoverflow.com/questions/29488810/one-record-on-multiple-lines-only-first-with-rid
+
+:10:BLABLABLABLA
+:11:/TRTP/SEPA OVERBOEKING/IBAN
+HR W HERMAN
+503270327C30,49NTRFSCT20111212
+:12:BLABLABLABLA
+
+now header: ':10', footer ':12', but records in middle started with ':11', spanning multiple lines.

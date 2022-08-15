@@ -1,0 +1,101 @@
+{
+    "parser_settings": {
+        "version": "omni.2.1",
+        "file_format_type": "fixed-length-adv"
+    },
+    "file_declaration": {
+        "record_declarations": [
+            {
+                "name": "HDR",
+                "line_pattern": "^HDR",
+                "child_records": [
+                    {
+                        "name": "transactionInfo", "type": "record_group", "min": 0, "max": -1,
+                        "child_records": [
+                            {
+                                "name": "GRH",
+                                "fields": [
+                                    { "name": "id", "start_pos": 7, "length": 5 }
+                                ]
+                            },
+                            {
+                                "name": "nwrInfo", "type": "record_group", "min": 0, "max": -1, "is_target": true,
+                                "child_records": [
+                                    {
+                                        "name": "NWR",
+                                        "fields": [
+                                            { "name": "title", "start_pos": 20, "length": 60 }
+                                        ]
+                                    },
+                                    {
+                                        "name": "publisherInfo", "type": "record_group", "min": 0, "max": -1,
+                                        "child_records": [
+                                            {
+                                                "name": "SPU",
+                                                "fields": [
+                                                    { "name": "publisher_name", "start_pos": 31, "length": 45 }
+                                                ]
+                                            },
+                                            {
+                                                "name": "SPT", "min": 0, "max": -1,
+                                                "fields": [
+                                                    { "name": "terrory_id", "start_pos": 51, "length": 4 }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "name": "writerInfo", "type": "record_group", "min": 0, "max": -1,
+                                        "child_records": [
+                                            {
+                                                "name": "SWR",
+                                                "fields": [
+                                                    { "name": "writer_id", "start_pos": 20, "length": 9 },
+                                                    { "name": "last_name", "start_pos": 29, "length": 45 }
+                                                ]
+                                            },
+                                            {
+                                                "name": "SWT", "min": 0, "max": -1,
+                                                "fields": [
+                                                    { "name": "terrory_id", "start_pos": 45, "length": 4 }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            { "name": "GRT" }
+                        ]
+                    }
+                ]
+            },
+            { "name": "TRL" }
+        ]
+    },
+    "transform_declarations": {
+        "FINAL_OUTPUT": { "object": {
+            "title": { "xpath": "NWR/title" },
+            "publishers": { "array": [
+                { "xpath": "publisherInfo", "object": {
+                    "publisher_name": { "xpath": "SPU/publisher_name" },
+                    "terrorites": { "array": [
+                        { "xpath": "SPT", "object": {
+                            "terrory_id": { "xpath": "terrory_id" }
+                        }}
+                    ]}
+                }}
+            ]},
+            "writers": { "array": [
+                { "xpath": "writerInfo", "object": {
+                    "writer_id": { "xpath": "SWR/writer_id" },
+                    "last_name": { "xpath": "SWR/last_name" },
+                    "terrorites": { "array": [
+                        { "xpath": "SWT", "object": {
+                            "terrory_id": { "xpath": "terrory_id" }
+                        }}
+                    ]}
+                }}
+            ]}
+        }}
+    }
+}
