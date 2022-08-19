@@ -13,7 +13,7 @@
                         "fields": [ { "name": "id", "start_pos": 7, "length": 5 } ],
                         "child_records": [
                             {
-                                "name": "NWR", "max": -1,
+                                "name": "NWR", "max": -1, "is_target": true,
                                 "fields": [ { "name": "title", "start_pos": 20, "length": 60 } ],
                                 "child_records": [
                                     {
@@ -50,11 +50,9 @@
         ]
     },
     "transform_declarations": {
-        "FINAL_OUTPUT": { "array": [
-            { "xpath": "GRH/NWR", "custom_func": {
+        "FINAL_OUTPUT": { "custom_func": {
                 "name": "javascript_with_context",
                 "args": [ { "const": "JSON.parse(_node);" } ]
-            }}
-        ]}
+        }}
     }
 }
