@@ -13,7 +13,7 @@
                         "fields": [ { "name": "id", "start_pos": 7, "length": 5 } ],
                         "child_records": [
                             {
-                                "name": "NWR", "max": -1, "is_target": true,
+                                "name": "NWR", "max": -1,
                                 "fields": [ { "name": "title", "start_pos": 20, "length": 60 } ],
                                 "child_records": [
                                     {
@@ -50,29 +50,11 @@
         ]
     },
     "transform_declarations": {
-        "FINAL_OUTPUT": { "object": {
-            "title": { "xpath": "title" },
-            "publishers": { "array": [
-                { "xpath": "SPU", "object": {
-                    "publisher_name": { "xpath": "publisher_name" },
-                    "terrorites": { "array": [
-                        { "xpath": "SPT", "object": {
-                            "terrory_id": { "xpath": "terrory_id" }
-                        }}
-                    ]}
-                }}
-            ]},
-            "writers": { "array": [
-                { "xpath": "SWR", "object": {
-                    "writer_id": { "xpath": "writer_id" },
-                    "last_name": { "xpath": "last_name" },
-                    "terrorites": { "array": [
-                        { "xpath": "SWT", "object": {
-                            "terrory_id": { "xpath": "terrory_id" }
-                        }}
-                    ]}
-                }}
-            ]}
-        }}
+        "FINAL_OUTPUT": { "array": [
+            { "xpath": "GRH/NWR", "custom_func": {
+                "name": "javascript_with_context",
+                "args": [ { "const": "JSON.parse(_node);" } ]
+            }}
+        ]}
     }
 }

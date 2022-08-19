@@ -18,7 +18,10 @@ func (ctx *validateCtx) validateFileDecl(fileDecl *FileDecl) error {
 		}
 	}
 	if !ctx.seenTarget {
-		return errors.New("missing record/record_group with 'is_target' = true")
+		if len(fileDecl.RecDecls) > 1 {
+			return errors.New("missing record/record_group with 'is_target' = true")
+		}
+		fileDecl.RecDecls[0].IsTarget = true
 	}
 	return nil
 }
