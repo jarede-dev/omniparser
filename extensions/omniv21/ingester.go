@@ -38,6 +38,8 @@ type ingester struct {
 
 // Read ingests a raw record from the input stream, transforms it according the given schema and return
 // the raw record, transformed JSON bytes.
+// For this schema handler (omni.2.1), the raw record isn't really raw - instead it's the IDR of the
+// record.
 func (g *ingester) Read() (schemahandler.RawRecord, []byte, error) {
 	if g.rawRecord.node != nil {
 		g.reader.Release(g.rawRecord.node)

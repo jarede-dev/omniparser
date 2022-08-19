@@ -1,4 +1,4 @@
-package fixedlengthadv
+package fixedlength
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/antchfx/xpath"
 	"github.com/jf-tech/go-corelib/caches"
 	"github.com/jf-tech/go-corelib/strs"
 
@@ -15,26 +16,26 @@ import (
 )
 
 const (
-	fileFormatFixedLengthAdv = "fixed-length-adv"
+	fileFormatFixedLength = "fixed-length-adv"
 )
 
-type fixedLengthAdvFormat struct {
+type fixedLengthFormat struct {
 	schemaName string
 }
 
-// NewFixedLengthAdvFormat creates a FileFormat for 'fixed-length-adv'.
-func NewFixedLengthAdvFormat(schemaName string) fileformat.FileFormat {
-	return &fixedLengthAdvFormat{schemaName: schemaName}
+// NewFixedLengthFormat creates a FileFormat for 'fixed-length-adv'.
+func NewFixedLengthFormat(schemaName string) fileformat.FileFormat {
+	return &fixedLengthFormat{schemaName: schemaName}
 }
 
-type fixedLengthAdvFormatRuntime struct {
+type fixedLengthFormatRuntime struct {
 	Decl  *FileDecl `json:"file_declaration"`
 	XPath string
 }
 
-func (f *fixedLengthAdvFormat) ValidateSchema(
+func (f *fixedLengthFormat) ValidateSchema(
 	format string, schemaContent []byte, finalOutputDecl *transform.Decl) (interface{}, error) {
-	if format != fileFormatFixedLengthAdv {
+	if format != fileFormatFixedLength {
 		return nil, errs.ErrSchemaNotSupported
 	}
 	/* TODO
@@ -43,15 +44,12 @@ func (f *fixedLengthAdvFormat) ValidateSchema(
 		// err is already context formatted.
 		return nil, err
 	}*/
-	var runtime fixedLengthAdvFormatRuntime
+	var runtime fixedLengthFormatRuntime
 	_ = json.Unmarshal(schemaContent, &runtime) // JSON schema validation earlier guarantees Unmarshal success.
 	err := f.validateFileDecl(runtime.Decl)
 	if err != nil {
 		// err is already context formatted.
 		return nil, err
-	}
-	if finalOutputDecl == nil {
-		return nil, f.FmtErr("'FINAL_OUTPUT' is missing")
 	}
 	runtime.XPath = strings.TrimSpace(strs.StrPtrOrElse(finalOutputDecl.XPath, ""))
 	if runtime.XPath != "" {
@@ -64,7 +62,7 @@ func (f *fixedLengthAdvFormat) ValidateSchema(
 	return &runtime, nil
 }
 
-func (f *fixedLengthAdvFormat) validateFileDecl(decl *FileDecl) error {
+func (f *fixedLengthFormat) validateFileDecl(decl *FileDecl) error {
 	err := (&validateCtx{}).validateFileDecl(decl)
 	if err != nil {
 		return f.FmtErr(err.Error())
@@ -72,12 +70,21 @@ func (f *fixedLengthAdvFormat) validateFileDecl(decl *FileDecl) error {
 	return err
 }
 
-func (f *fixedLengthAdvFormat) CreateFormatReader(
+func (f *fixedLengthFormat) CreateFormatReader(
 	name string, r io.Reader, runtime interface{}) (fileformat.FormatReader, error) {
-	rt := runtime.(*fixedLengthAdvFormatRuntime)
-	return NewReader(name, r, rt.Decl, rt.XPath)
+	rt := runtime.(*fixedLengthFormatRuntime)
+	targetXPathExpr, err := func() (*xpath.Expr, error) {
+		if rt.XPath == "" || rt.XPath == "." {
+			return nil, nil
+		}
+		return caches.GetXPathExpr(rt.XPath)
+	}()
+	if err != nil {
+		return nil, f.FmtErr("xpath '%s' on 'FINAL_OUTPUT' is invalid: %s", rt.XPath, err.Error())
+	}
+	return NewReader(name, r, rt.Decl, targetXPathExpr)
 }
 
-func (f *fixedLengthAdvFormat) FmtErr(format string, args ...interface{}) error {
+func (f *fixedLengthFormat) FmtErr(format string, args ...interface{}) error {
 	return fmt.Errorf("schema '%s': %s", f.schemaName, fmt.Sprintf(format, args...))
 }
