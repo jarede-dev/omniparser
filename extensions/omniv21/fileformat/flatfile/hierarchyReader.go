@@ -10,22 +10,37 @@ import (
 )
 
 type ErrFewerThanMinOccurs struct {
-	RecName       string
-	MinOccurs     int
+	RecDecl       RecDecl
 	ActualOcccurs int
 }
 
-// Error satisfies error interface with a dummy text. User of this error should/will
-// directly access the payload and reconstruct their own error/msg.
-func (e ErrFewerThanMinOccurs) Error() string { return "" }
+// Error satisfies the error interface with a dummy text. User of this error must
+// directly access the payload and reconstruct their own context aware error.
+func (e ErrFewerThanMinOccurs) Error() string { panic("shouldn't be called") }
 
-type ErrUnexpectedRecord struct {
-	RawRec interface{}
+func IsErrFewerThanMinOccurs(err error) bool {
+	switch err.(type) {
+	case ErrFewerThanMinOccurs:
+		return true
+	default:
+		return false
+	}
 }
 
-// Error satisfies error interface with a dummy text. User of this error should/will
-// directly access the payload and reconstruct their own error/msg.
-func (e ErrUnexpectedRecord) Error() string { return "" }
+type ErrUnexpectedData struct{}
+
+func IsErrUnexpectedData(err error) bool {
+	switch err.(type) {
+	case ErrUnexpectedData:
+		return true
+	default:
+		return false
+	}
+}
+
+// Error satisfies the error interface with a dummy text. User of this error must
+// directly access the payload and reconstruct their own context aware error.
+func (e ErrUnexpectedData) Error() string { panic("shouldn't be called") }
 
 type stackEntry struct {
 	recDecl  RecDecl   // the current stack entry's record decl
@@ -39,7 +54,7 @@ const (
 )
 
 type HierarchyReader struct {
-	r               RawRecReader
+	r               RecReader
 	stack           []stackEntry
 	target          *idr.Node
 	targetXPathExpr *xpath.Expr
@@ -123,34 +138,22 @@ func (r *HierarchyReader) recDone() {
 func (r *HierarchyReader) recNext() error {
 	cur := r.stackTop()
 	if cur.occurred < cur.recDecl.MinOccurs() {
-		return ErrFewerThanMinOccurs{
-			RecName:       cur.recDecl.UniqueName(),
-			MinOccurs:     cur.recDecl.MinOccurs(),
-			ActualOcccurs: cur.occurred,
-		}
+		return ErrFewerThanMinOccurs{RecDecl: cur.recDecl, ActualOcccurs: cur.occurred}
 	}
 	if len(r.stack) <= 1 {
 		return nil
 	}
 	cur = r.shrinkStack()
-	if cur.curChild < len(cur.recDecl.ChildDecls())-1 {
+	if cur.curChild < len(cur.recDecl.ChildRecDecls())-1 {
 		cur.curChild++
-		r.growStack(stackEntry{recDecl: cur.recDecl.ChildDecls()[cur.curChild]})
+		r.growStack(stackEntry{recDecl: cur.recDecl.ChildRecDecls()[cur.curChild]})
 		return nil
 	}
 	r.recDone()
 	return nil
 }
 
-// Read processes input and returns an instance of the streaming target (aka the record marked with is_target=true)
-// The basic idea is a forever for-loop, inside which it reads out an unprocessed record data, tries to see
-// if the record data matches what's the current record decl we're processing: if matches, great, creates a new
-// instance of the current record decl with the data; if not, we call recNext to move the next record decl inline, and
-// continue the for-loop so next iteration, the same unprocessed data will be matched against the new record decl.
-// Possible known errors returned:
-// - io.EOF
-// - ErrFewerThanMinOccurs
-// - ErrUnexpectedRecord
+// Read .....
 func (r *HierarchyReader) Read() (*idr.Node, error) {
 	if r.target != nil {
 		// This is just in case Release() isn't called by ingester.
@@ -161,16 +164,19 @@ func (r *HierarchyReader) Read() (*idr.Node, error) {
 		if r.target != nil {
 			return r.target, nil
 		}
-		rec, err := r.r.Cur()
+		err := r.r.MoreUnprocessedData()
 		if err == io.EOF {
 			// When the input is done, we still need to verified all the
-			// remaining records' min occurs are satisfied. We can do so by
+			// remaining decls' min occurs are satisfied. We can do so by
 			// simply keeping on moving to the next rec: we call recNext()
 			// once at a time - in case after the recNext() call, the reader
 			// yields another target node. We can safely do this (1 recNext()
-			// call at a time after we encounter EOF) is because getUnprocessedRawRec()
-			// will repeatedly return EOF.
+			// call at a time after we encounter EOF) is because
+			// r.r.MoreUnprocessedData() should/will repeatedly return io.EOF,
+			// once it returns io.EOF.
 			if len(r.stack) <= 1 {
+				// If we don't have any more data, and our decl stack has been
+				// completed, then we're all done!!
 				return nil, io.EOF
 			}
 			err = r.recNext()
@@ -180,33 +186,39 @@ func (r *HierarchyReader) Read() (*idr.Node, error) {
 			continue
 		}
 		if err != nil {
+			// r.r.MoreUnprocessedData() has encounter some real IO failures.
 			return nil, err
 		}
-		cur := r.stackTop()
-		if !cur.recDecl.Match(rec) {
-			if len(r.stack) <= 1 {
-				return nil, ErrUnexpectedRecord{RawRec: rec}
-			}
-			err = r.recNext()
+		// Now at this point, we know we have more unprocessed data.
+		if len(r.stack) <= 1 {
+			// This means we currently have some unprocessed data but all the rec
+			// decls' processing is done.
+			return nil, ErrUnexpectedData{}
+		}
+		curRecEntry := r.stackTop()
+		node, err := r.r.ReadRec(curRecEntry.recDecl)
+		// Note given we have unprocessed data, r.r.ReadRec should never return
+		// io.EOF. So any error encountered, we directly bail out.
+		if err != nil {
+			return nil, err
+		}
+		// if no err returned from r.r.ReadRec(), but node returned is nil, that means
+		// the current data isn't a match for the curRecEntry.recDecl. So the
+		// curRecEntry.recDecl instance is considered done.
+		if node == nil {
+			err = r.recNext() // move onto the decl's next instance.
 			if err != nil {
 				return nil, err
 			}
 			continue
 		}
-		cur.recNode, err = cur.recDecl.ToNode(rec)
-		if err != nil {
-			return nil, r.r.FmtErr(err.Error())
-		}
-		if !cur.recDecl.Group() {
-			r.r.MarkCurDone()
-		}
-		// the new idr node is a new instance of the current RecDecl thus
-		// when we add it to the IDR tree, we need to add it as a child of
-		// its parent, thus adding it to stackTop(1), not (0) - which is the
-		// current RecDecl itself.
-		idr.AddChild(r.stackTop(1).recNode, cur.recNode)
-		if len(cur.recDecl.ChildDecls()) > 0 {
-			r.growStack(stackEntry{recDecl: cur.recDecl.ChildDecls()[0]})
+		curRecEntry.recNode = node
+		// the new idr node is a new instance of the current RecDecl thus when we add it to
+		// the IDR tree, we need to add it as a child of the current RecDecl's parent, thus
+		// adding it to stackTop(1), not (0).
+		idr.AddChild(r.stackTop(1).recNode, curRecEntry.recNode)
+		if len(curRecEntry.recDecl.ChildRecDecls()) > 0 {
+			r.growStack(stackEntry{recDecl: curRecEntry.recDecl.ChildRecDecls()[0]})
 			continue
 		}
 		r.recDone()
@@ -214,6 +226,9 @@ func (r *HierarchyReader) Read() (*idr.Node, error) {
 }
 
 func (r *HierarchyReader) Release(n *idr.Node) {
+	if n == nil {
+		return
+	}
 	if r.target == n {
 		r.target = nil
 	}
@@ -221,21 +236,19 @@ func (r *HierarchyReader) Release(n *idr.Node) {
 }
 
 func NewHierarchyReader(
-	recDecls []RecDecl, rawRecReader RawRecReader, targetXPathExpr *xpath.Expr) *HierarchyReader {
+	children []RecDecl, rawRecReader RecReader, targetXPathExpr *xpath.Expr) *HierarchyReader {
 	r := &HierarchyReader{
 		r:               rawRecReader,
 		stack:           make([]stackEntry, 0, initialStackDepth),
 		targetXPathExpr: targetXPathExpr,
 	}
-	rootDecl := rootRecDecl{childDecls: recDecls}
+	rootDecl := rootDecl{children: children}
 	r.growStack(stackEntry{
 		recDecl: rootDecl,
-		recNode: func() *idr.Node {
-			n, _ := rootDecl.ToNode(nil)
-			return n
-		}()})
-	if len(recDecls) > 0 {
-		r.growStack(stackEntry{recDecl: recDecls[0]})
+		recNode: idr.CreateNode(idr.DocumentNode, rootName),
+	})
+	if len(rootDecl.children) > 0 {
+		r.growStack(stackEntry{recDecl: rootDecl.children[0]})
 	}
 	return r
 }

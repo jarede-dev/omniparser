@@ -1,9 +1,9 @@
 package fixedlength
 
 import (
-	"errors"
 	"fmt"
 
+	"github.com/jf-tech/go-corelib/caches"
 	"github.com/jf-tech/go-corelib/strs"
 )
 
@@ -12,48 +12,80 @@ type validateCtx struct {
 }
 
 func (ctx *validateCtx) validateFileDecl(fileDecl *FileDecl) error {
-	for _, recDecl := range fileDecl.RecDecls {
-		if err := ctx.validateRecDecl(recDecl.Name, recDecl); err != nil {
+	for _, envelopeDecl := range fileDecl.Envelopes {
+		if err := ctx.validateEnvelopeDecl(envelopeDecl.Name, envelopeDecl); err != nil {
 			return err
 		}
 	}
-	if !ctx.seenTarget {
-		if len(fileDecl.RecDecls) > 1 {
-			return errors.New("missing record/record_group with 'is_target' = true")
-		}
-		fileDecl.RecDecls[0].IsTarget = true
+	if !ctx.seenTarget && len(fileDecl.Envelopes) > 0 {
+		// for easy of use and convenience, if no is_target=true envelope is specified, then
+		// the first one on the root will be automatically designated as target envelope.
+		fileDecl.Envelopes[0].IsTarget = true
 	}
 	return nil
 }
 
-func (ctx *validateCtx) validateRecDecl(recFQDN string, recDecl *RecDecl) error {
-	recDecl.fqdn = recFQDN
-	if recDecl.MinOccurs() > recDecl.MaxOccurs() {
-		return fmt.Errorf("record '%s' has 'min' value %d > 'max' value %d",
-			recFQDN, recDecl.MinOccurs(), recDecl.MaxOccurs())
+func (ctx *validateCtx) validateEnvelopeDecl(fqdn string, envelopeDecl *EnvelopeDecl) (err error) {
+	envelopeDecl.fqdn = fqdn
+	if envelopeDecl.Header != nil {
+		envelopeDecl.headerRegexp, err = caches.GetRegex(*envelopeDecl.Header)
+		if err != nil {
+			return fmt.Errorf("envelope '%s' has an invalid 'header' regexp '%s': %s",
+				fqdn, *envelopeDecl.Header, err.Error())
+		}
 	}
-	if recDecl.IsTarget {
+	if envelopeDecl.Footer != nil {
+		envelopeDecl.footerRegexp, err = caches.GetRegex(*envelopeDecl.Footer)
+		if err != nil {
+			return fmt.Errorf("envelope '%s' has an invalid 'footer' regexp '%s': %s",
+				fqdn, *envelopeDecl.Footer, err.Error())
+		}
+	}
+	if envelopeDecl.Group() {
+		if len(envelopeDecl.Children) <= 0 {
+			return fmt.Errorf(
+				"envelope_group '%s' must have at least one child envelope/envelope_group", fqdn)
+		}
+		if len(envelopeDecl.Columns) > 0 {
+			return fmt.Errorf("envelope_group '%s' must not any columns", fqdn)
+		}
+	}
+	if envelopeDecl.IsTarget {
 		if ctx.seenTarget {
 			return fmt.Errorf(
-				"a second record/group ('%s') with 'is_target' = true is not allowed", recFQDN)
+				"a second envelope/envelope_group ('%s') with 'is_target' = true is not allowed",
+				fqdn)
 		}
 		ctx.seenTarget = true
 	}
-	if recDecl.Group() {
-		if len(recDecl.Children) <= 0 {
-			return fmt.Errorf(
-				"record_group '%s' must have at least one child record/record_group", recFQDN)
-		}
-		if len(recDecl.Fields) > 0 {
-			return fmt.Errorf("record_group '%s' must not any fields", recFQDN)
-		}
+	if envelopeDecl.MinOccurs() > envelopeDecl.MaxOccurs() {
+		return fmt.Errorf("envelope/envelope_group '%s' has 'min' value %d > 'max' value %d",
+			fqdn, envelopeDecl.MinOccurs(), envelopeDecl.MaxOccurs())
 	}
-	for _, child := range recDecl.Children {
-		err := ctx.validateRecDecl(strs.BuildFQDN2(fqdnDelim, recFQDN, child.Name), child)
+	for _, colDecl := range envelopeDecl.Columns {
+		err = ctx.validateColumnDecl(fqdn, colDecl)
 		if err != nil {
 			return err
 		}
 	}
-	recDecl.childDecls = toFlatFileRecDecls(recDecl.Children)
+	for _, child := range envelopeDecl.Children {
+		err = ctx.validateEnvelopeDecl(strs.BuildFQDN2("/", fqdn, child.Name), child)
+		if err != nil {
+			return err
+		}
+	}
+	envelopeDecl.childRecDecls = toFlatFileRecDecls(envelopeDecl.Children)
+	return nil
+}
+
+func (ctx *validateCtx) validateColumnDecl(fqdn string, colDecl *ColumnDecl) (err error) {
+	if colDecl.LinePattern != nil {
+		colDecl.linePatternRegexp, err = caches.GetRegex(*colDecl.LinePattern)
+		if err != nil {
+			return fmt.Errorf(
+				"envelope '%s' column '%s' has an invalid 'line_pattern' regexp '%s': %s",
+				fqdn, colDecl.Name, *colDecl.LinePattern, err.Error())
+		}
+	}
 	return nil
 }

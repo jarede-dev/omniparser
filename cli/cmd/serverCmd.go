@@ -154,8 +154,8 @@ func httpPostTransform(w http.ResponseWriter, r *http.Request) {
 
 var (
 	sampleDir                  = "../../extensions/omniv21/samples/"
-	sampleFormats              = []string{"csv", "json", "xml", "fixedlength", "edi"}
-	sampleInputFilenamePattern = regexp.MustCompile("^([0-9]+[_a-zA-Z0-9]+)\\.input\\.[a-z]+$")
+	sampleFormats              = []string{"csv", "json", "xml", "fixedlength", "fixedlength-adv", "edi"}
+	sampleInputFilenamePattern = regexp.MustCompile(`^([0-9]+[_a-zA-Z0-9]+)\.input\.[a-z]+$`)
 )
 
 type sample struct {
@@ -199,7 +199,6 @@ func httpGetSamples(w http.ResponseWriter, r *http.Request) {
 
 getSampleFailure:
 	writeInternalServerError(w, "unable to get samples")
-	return
 }
 
 func httpGetVersion(w http.ResponseWriter, r *http.Request) {
