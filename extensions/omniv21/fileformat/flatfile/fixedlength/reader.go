@@ -44,67 +44,33 @@ type reader struct {
 
 // NewReader creates an FormatReader for fixed-length file format.
 func NewReader(
-	inputName string, r io.Reader, decl *FileDecl, targetXPathExpr *xpath.Expr) (*reader, error) {
+	inputName string, r io.Reader, decl *FileDecl, targetXPathExpr *xpath.Expr) *reader {
 	reader := &reader{
 		inputName: inputName,
 		r:         bufio.NewReader(r),
 	}
 	reader.hr = flatfile.NewHierarchyReader(
 		toFlatFileRecDecls(decl.Envelopes), reader, targetXPathExpr)
-	return reader, nil
+	return reader
 }
 
-func (r *reader) MoreUnprocessedData() error {
+func (r *reader) MoreUnprocessedData() (bool, error) {
 	if len(r.linesBuf) > 0 {
-		return nil
+		return true, nil
 	}
-	return r.readLine()
+	if err := r.readLine(); err != nil && err != io.EOF {
+		return false, err
+	}
+	return len(r.linesBuf) > 0, nil
 }
 
-func (r *reader) ReadRec(d flatfile.RecDecl) (*idr.Node, error) {
-	// If the decl is a solid envelope decl (not a group), then we will directly
-	// match what's in the line buf with the decl; if it is a group, then we'll match
-	// the line buf with the first non-group child evenlope decl (recursively if needed).
-	// The logic is similar to the EDI segment_group and matching algorithm.
-	decl := d.(*EnvelopeDecl)
-	nonGroupDecl := decl
-	for nonGroupDecl.Group() && len(nonGroupDecl.Children) > 0 {
-		nonGroupDecl = nonGroupDecl.Children[0]
+func (r *reader) ReadAndMatch(
+	decl flatfile.RecDecl, createIDR bool) (matched bool, node *idr.Node, err error) {
+	envelopeDecl := decl.(*EnvelopeDecl)
+	if envelopeDecl.rowsBased() {
+		return r.readAndMatchRowsBasedEnvelope(envelopeDecl, createIDR)
 	}
-	if nonGroupDecl.Group() {
-		// We must have a non-group solid evenlope to match the next record; if not, it's a no
-		// match, thus returning nil for IDR and nil for error according to
-		// flatfile.RecReader.ReadRec implementation requirement.
-		return nil, nil
-	}
-	// while doing matching, if the decl isn't a group, we do need to translate it into
-	// an IDR node. If it is a group, no need to spend cycles/resources to do the IDR creation.
-	matched, node, err := r.readAndMatchEnvelope(nonGroupDecl, !decl.Group())
-	if err != nil {
-		return nil, err
-	}
-	if !matched {
-		return nil, nil
-	}
-	if decl.Group() {
-		// while we matched up the line buf with the child non-group envelopement, but
-		// here the decl is for the group, so we simply return an instance of the group
-		// IDR node, leaving the line buf intact to be translated into an IDR later.
-		return idr.CreateNode(idr.ElementNode, decl.Name), nil
-	}
-	return node, nil
-}
-
-func (r *reader) readAndMatchEnvelope(decl *EnvelopeDecl, createNode bool) (bool, *idr.Node, error) {
-	if decl.Group() {
-		panic(fmt.Sprintf(
-			"readAndMatchEnvelope must be called with a non-group envelope decl, instead got '%s'",
-			decl.fqdn))
-	}
-	if decl.rowsBased() {
-		return r.readAndMatchRowsBasedEnvelope(decl, createNode)
-	}
-	return r.readAndMatchHeaderFooterBasedEnvelope(decl, createNode)
+	return r.readAndMatchHeaderFooterBasedEnvelope(envelopeDecl, createIDR)
 }
 
 func (r *reader) readAndMatchRowsBasedEnvelope(

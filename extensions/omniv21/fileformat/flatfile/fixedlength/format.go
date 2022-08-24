@@ -16,14 +16,14 @@ import (
 )
 
 const (
-	fileFormatFixedLength = "fixed-length-adv"
+	fileFormatFixedLength = "fixedlength2"
 )
 
 type fixedLengthFormat struct {
 	schemaName string
 }
 
-// NewFixedLengthFormat creates a FileFormat for 'fixed-length-adv'.
+// NewFixedLengthFormat creates a FileFormat for 'fixedlength2'.
 func NewFixedLengthFormat(schemaName string) fileformat.FileFormat {
 	return &fixedLengthFormat{schemaName: schemaName}
 }
@@ -82,7 +82,7 @@ func (f *fixedLengthFormat) CreateFormatReader(
 	if err != nil {
 		return nil, f.FmtErr("xpath '%s' on 'FINAL_OUTPUT' is invalid: %s", rt.XPath, err.Error())
 	}
-	return NewReader(name, r, rt.Decl, targetXPathExpr)
+	return NewReader(name, r, rt.Decl, targetXPathExpr), nil
 }
 
 func (f *fixedLengthFormat) FmtErr(format string, args ...interface{}) error {

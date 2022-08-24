@@ -1,6 +1,7 @@
 package flatfile
 
 type RecDecl interface {
+	DeclName() string
 	Target() bool
 	Group() bool
 	MinOccurs() int
@@ -16,6 +17,7 @@ type rootDecl struct {
 	children []RecDecl
 }
 
+func (d rootDecl) DeclName() string         { return rootName }
 func (d rootDecl) Target() bool             { return false }
 func (d rootDecl) Group() bool              { return true }
 func (d rootDecl) MinOccurs() int           { return 1 }

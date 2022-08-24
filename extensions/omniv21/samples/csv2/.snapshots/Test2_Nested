@@ -1,0 +1,57 @@
+[
+	{
+		"RawRecord": "{\"\":\"1\",\"CustomerEmail\":\"js@test.org\",\"CustomerFirstName\":\"John\",\"CustomerLastName\":\"Smith\",\"LineItem\":[{\"\":\"2\",\"ItemId\":\"1\",\"OrderId\":\"OI-12345\",\"Price\":\"3.5\",\"Quantity\":\"20\",\"SKU\":\"AS012\"},{\"\":\"2\",\"ItemId\":\"2\",\"OrderId\":\"OI-12345\",\"Price\":\"17.8\",\"Quantity\":\"5\",\"SKU\":\"K0208\"}],\"OrderId\":\"OI-12345\"}",
+		"RawRecordHash": "18ae67a8-dfa8-3232-aa62-3de719b56c01",
+		"TransformedRecord": {
+			"customer_email": "js@test.org",
+			"customer_fullname": "JohnSmith",
+			"line_items": [
+				{
+					"item_id": "1",
+					"price": 3.5,
+					"quantity": 20,
+					"sku": "AS012"
+				},
+				{
+					"item_id": "2",
+					"price": 17.8,
+					"quantity": 5,
+					"sku": "K0208"
+				}
+			],
+			"order_id": "OI-12345"
+		}
+	},
+	{
+		"RawRecord": "{\"\":\"1\",\"CustomerEmail\":\"jk@test.org\",\"CustomerFirstName\":\"Jane\",\"CustomerLastName\":\"Karen\",\"OrderId\":\"OI-98765\"}",
+		"RawRecordHash": "372d5100-4869-332b-a4c0-353b075e29c5",
+		"TransformedRecord": {
+			"customer_email": "jk@test.org",
+			"customer_fullname": "JaneKaren",
+			"order_id": "OI-98765"
+		}
+	},
+	{
+		"RawRecord": "{\"\":\"1\",\"CustomerEmail\":\"op@autobot.ai\",\"CustomerFirstName\":\"Optimus\",\"CustomerLastName\":\"Prime\",\"LineItem\":[{\"\":\"2\",\"ItemId\":\"1\",\"OrderId\":\"OI-13579\",\"Price\":\"199.99\",\"Quantity\":\"200\",\"SKU\":\"CPU001\"},{\"\":\"2\",\"ItemId\":\"2\",\"OrderId\":\"OI-13579\",\"Price\":\"17.88\",\"Quantity\":\"1000\",\"SKU\":\"ENERGON-CUBE-L\"}],\"OrderId\":\"OI-13579\"}",
+		"RawRecordHash": "7edecb48-67e8-3a70-9a5c-860c1feaf077",
+		"TransformedRecord": {
+			"customer_email": "op@autobot.ai",
+			"customer_fullname": "OptimusPrime",
+			"line_items": [
+				{
+					"item_id": "1",
+					"price": 199.99,
+					"quantity": 200,
+					"sku": "CPU001"
+				},
+				{
+					"item_id": "2",
+					"price": 17.88,
+					"quantity": 1000,
+					"sku": "ENERGON-CUBE-L"
+				}
+			],
+			"order_id": "OI-13579"
+		}
+	}
+]

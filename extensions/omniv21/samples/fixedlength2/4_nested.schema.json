@@ -1,7 +1,7 @@
 {
     "parser_settings": {
         "version": "omni.2.1",
-        "file_format_type": "fixed-length-adv"
+        "file_format_type": "fixedlength2"
     },
     "file_declaration": {
         "envelopes": [

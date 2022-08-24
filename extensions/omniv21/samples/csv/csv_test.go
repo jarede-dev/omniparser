@@ -8,42 +8,57 @@ import (
 
 	"github.com/bradleyjkemp/cupaloy"
 	"github.com/jf-tech/go-corelib/jsons"
-
 	"github.com/jf-tech/omniparser"
+
 	"github.com/jf-tech/omniparser/extensions/omniv21/samples"
 	"github.com/jf-tech/omniparser/transformctx"
 )
 
-func Test1_Weather_Data_CSV(t *testing.T) {
-	cupaloy.SnapshotT(t, jsons.BPJ(samples.SampleTestCommon(
-		t, "./1_weather_data_csv.schema.json", "./1_weather_data_csv.input.csv")))
+type testCase struct {
+	schemaFile string
+	inputFile  string
+	schema     omniparser.Schema
+	input      []byte
 }
 
-var benchSchemaFile = "./1_weather_data_csv.schema.json"
-var benchInputFile = "./1_weather_data_csv.input.csv"
-var benchSchema omniparser.Schema
-var benchInput []byte
+const (
+	test1_Weather_Data = iota
+	test2_Nested
+)
+
+var tests = []testCase{
+	{
+		// test1_Weather_Data
+		schemaFile: "./1_weather_data.schema.json",
+		inputFile:  "./1_weather_data.input.csv",
+	},
+}
 
 func init() {
-	schema, err := ioutil.ReadFile(benchSchemaFile)
-	if err != nil {
-		panic(err)
-	}
-	benchSchema, err = omniparser.NewSchema("bench", bytes.NewReader(schema))
-	if err != nil {
-		panic(err)
-	}
-	benchInput, err = ioutil.ReadFile(benchInputFile)
-	if err != nil {
-		panic(err)
+	for i := range tests {
+		schema, err := ioutil.ReadFile(tests[i].schemaFile)
+		if err != nil {
+			panic(err)
+		}
+		tests[i].schema, err = omniparser.NewSchema("bench", bytes.NewReader(schema))
+		if err != nil {
+			panic(err)
+		}
+		tests[i].input, err = ioutil.ReadFile(tests[i].inputFile)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
-// Benchmark1_Weather_Data_CSV-8   	  167850	    216683 ns/op	   75836 B/op	    1267 allocs/op
-func Benchmark1_Weather_Data_CSV(b *testing.B) {
+func (tst testCase) doTest(t *testing.T) {
+	cupaloy.SnapshotT(t, jsons.BPJ(samples.SampleTestCommon(t, tst.schemaFile, tst.inputFile)))
+}
+
+func (tst testCase) doBenchmark(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		transform, err := benchSchema.NewTransform(
-			"bench", bytes.NewReader(benchInput), &transformctx.Ctx{})
+		transform, err := tst.schema.NewTransform(
+			"bench", bytes.NewReader(tst.input), &transformctx.Ctx{})
 		if err != nil {
 			b.FailNow()
 		}
@@ -57,4 +72,12 @@ func Benchmark1_Weather_Data_CSV(b *testing.B) {
 			}
 		}
 	}
+}
+
+func Test1_Weather_Data(t *testing.T) {
+	tests[test1_Weather_Data].doTest(t)
+}
+
+func Benchmark1_Weather_Data(b *testing.B) {
+	tests[test1_Weather_Data].doBenchmark(b)
 }

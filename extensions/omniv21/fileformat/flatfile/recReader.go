@@ -9,12 +9,17 @@ import (
 type RecReader interface {
 	// MoreUnprocessedData tells if there is any unprocessed data left in the input stream.
 	// Possible return values:
-	// - nil: more data is available.
-	// - io.EOF: no more data is available.
-	// - non-nil err: some other (most likely fatal) IO error.
-	// Also once a call to this method returns io.EOF, all future calls to it also should
-	// return io.EOF.
-	MoreUnprocessedData() error
+	// - true, nil: more data is available.
+	// - false, nil: no more data is available.
+	// - _, err: some (most likely fatal) IO error has occurred.
+	// Implementation notes:
+	// - If some data is read in and io.EOF is encountered, true,nil should be returned.
+	// - If no data is read in and io.EOF is encountered, false,nil should be returned.
+	// - Under no circumstances, io.EOF should be returned.
+	// - Once a call to this method returns false,nil, all future calls to it also should
+	//   always return false, nil.
+	MoreUnprocessedData() (bool, error)
+	// TODO
 	// ReadRec reads any unprocessed data from input stream and try to match it with the
 	// decl passed in. If matched, then return an IDR node; if not, return nil.
 	// Implementation notes:
@@ -24,5 +29,5 @@ type RecReader interface {
 	//   to match the first-in-line non-group descendent decl. If matched, the returned IDR
 	//   node should be for this group node, and the actual matched record data should be
 	//   internally cached for the next call(s).
-	ReadRec(decl RecDecl) (*idr.Node, error)
+	ReadAndMatch(decl RecDecl, createIDR bool) (matched bool, node *idr.Node, err error)
 }

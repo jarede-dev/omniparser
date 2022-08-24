@@ -1,4 +1,4 @@
-package edi
+package fixedlength2
 
 import (
 	"bytes"
@@ -53,7 +53,7 @@ var tests = []testCase{
 }
 
 func init() {
-	for i, _ := range tests {
+	for i := range tests {
 		schema, err := ioutil.ReadFile(tests[i].schemaFile)
 		if err != nil {
 			panic(err)

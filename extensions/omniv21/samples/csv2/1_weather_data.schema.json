@@ -1,25 +1,53 @@
 {
     "parser_settings": {
         "version": "omni.2.1",
-        "file_format_type": "fixed-length-adv"
+        "file_format_type": "csv2"
     },
     "file_declaration": {
-        "envelopes" : [
+        "delimiter": "|",
+        "replace_double_quotes": true,
+        "records": [
             {
+                "name": "HEADER", "min": 1, "max": 1,
                 "columns": [
-                    { "name": "DATE", "start_pos": 1, "length": 24 },
-                    { "name": "HIGH_TEMP_C", "start_pos": 26, "length": 4 },
-                    { "name": "LOW_TEMP_F", "start_pos": 31, "length": 4 },
-                    { "name": "WIND_DIR", "start_pos": 36, "length": 2 },
-                    { "name": "WIND_SPEED_KMH", "start_pos": 9, "length": 2 },
-                    { "name": "LAT", "start_pos": 42, "length": 8 },
-                    { "name": "LONG", "start_pos": 51, "length": 8 }
+                    { "match": "^DATE$" },
+                    { "match": "^HIGH TEMP C$" },
+                    { "match": "^LOW TEMP F$" },
+                    { "match": "^WIND DIR$" },
+                    { "match": "^WIND SPEED KMH$" },
+                    { "match": "^NOTE$" },
+                    { "match": "^LAT$" },
+                    { "match": "^LONG$" },
+                    { "match": "^UV INDEX$" }
+                ]
+            },
+            {
+                "name": "REC", "is_target": true,
+                "columns": [
+                    { "name": "DATE" },
+                    { "name": "HIGH_TEMP_C" },
+                    { "name": "LOW_TEMP_F" },
+                    { "name": "WIND_DIR" },
+                    { "name": "WIND_SPEED_KMH" },
+                    { "name": "NOTE" },
+                    { "name": "LAT" },
+                    { "name": "LONG" },
+                    { "name": "UV_INDEX"}
                 ]
             }
         ]
     },
     "transform_declarations": {
-        "FINAL_OUTPUT": { "xpath": ".[DATE != 'DO NOT PROCESS']", "object": {
+        "FINAL_OUTPUT": { "xpath": ".[DATE != 'N/A']" ,"object": {
+            "uv_index": {
+                "custom_func": {
+                    "name": "javascript",
+                    "args": [
+                        { "const":  "uv.split('/').map(function(s){return s.trim();}).filter(function(s){return !!s;})" },
+                        { "const": "uv" }, { "xpath": "UV_INDEX" }
+                    ]
+                }
+            },
             "date": { "custom_func": {
                 "name": "dateTimeToRFC3339",
                 "args": [
@@ -47,7 +75,8 @@
                 ]
             }},
             "latitude": { "xpath": "LAT", "type": "float" },
-            "longitude": { "xpath": "LONG", "type": "float" }
+            "longitude": { "xpath": "LONG", "type": "float" },
+            "note": { "xpath": "NOTE" }
         }},
         "template_c_to_f": {
             "custom_func": {
@@ -56,8 +85,7 @@
                     { "const": "Math.floor((temp_c * 9 / 5 + 32) * 10) / 10" },
                     { "const": "temp_c" }, { "xpath": ".", "type": "float" }
                 ]
-            },
-            "type": "float"
+            }
         },
         "wind_acronym_mapping": {
             "custom_func": {

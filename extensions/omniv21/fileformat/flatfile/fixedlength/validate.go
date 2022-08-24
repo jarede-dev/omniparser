@@ -50,7 +50,7 @@ func (ctx *validateCtx) validateEnvelopeDecl(fqdn string, envelopeDecl *Envelope
 			return fmt.Errorf("envelope_group '%s' must not any columns", fqdn)
 		}
 	}
-	if envelopeDecl.IsTarget {
+	if envelopeDecl.Target() {
 		if ctx.seenTarget {
 			return fmt.Errorf(
 				"a second envelope/envelope_group ('%s') with 'is_target' = true is not allowed",

@@ -1,4 +1,4 @@
-package fixedlength
+package csv2
 
 import (
 	"bytes"
@@ -22,26 +22,20 @@ type testCase struct {
 }
 
 const (
-	test1_Single_Row = iota
-	test2_Multi_Rows
-	test3_Header_Footer
+	test1_Weather_Data = iota
+	test2_Nested
 )
 
 var tests = []testCase{
 	{
-		// test1_Single_Row
-		schemaFile: "./1_single_row.schema.json",
-		inputFile:  "./1_single_row.input.txt",
+		// test1_Weather_Data
+		schemaFile: "./1_weather_data.schema.json",
+		inputFile:  "./1_weather_data.input.csv",
 	},
 	{
-		// test2_Multi_Rows
-		schemaFile: "./2_multi_rows.schema.json",
-		inputFile:  "./2_multi_rows.input.txt",
-	},
-	{
-		// test3_Header_Footer
-		schemaFile: "./3_header_footer.schema.json",
-		inputFile:  "./3_header_footer.input.txt",
+		// test2_Nested
+		schemaFile: "./2_nested.schema.json",
+		inputFile:  "./2_nested.input.csv",
 	},
 }
 
@@ -85,29 +79,18 @@ func (tst testCase) doBenchmark(b *testing.B) {
 	}
 }
 
-func Test1_Single_Row(t *testing.T) {
-	tests[test1_Single_Row].doTest(t)
+func Test1_Weather_Data(t *testing.T) {
+	tests[test1_Weather_Data].doTest(t)
 }
 
-func Test2_Multi_Rows(t *testing.T) {
-	tests[test2_Multi_Rows].doTest(t)
+func Test2_Nested(t *testing.T) {
+	tests[test2_Nested].doTest(t)
 }
 
-func Test3_Header_Footer(t *testing.T) {
-	tests[test3_Header_Footer].doTest(t)
+func Benchmark1_Weather_Data(b *testing.B) {
+	tests[test1_Weather_Data].doBenchmark(b)
 }
 
-// Benchmark1_Single_Row-8      	   25869	     45576 ns/op	   27721 B/op	     644 allocs/op
-func Benchmark1_Single_Row(b *testing.B) {
-	tests[test1_Single_Row].doBenchmark(b)
-}
-
-// Benchmark2_Multi_Rows-8      	   18813	     63901 ns/op	   29167 B/op	     635 allocs/op
-func Benchmark2_Multi_Rows(b *testing.B) {
-	tests[test2_Multi_Rows].doBenchmark(b)
-}
-
-// Benchmark3_Header_Footer-8   	    5857	    197326 ns/op	   82234 B/op	    2009 allocs/op
-func Benchmark3_Header_Footer(b *testing.B) {
-	tests[test3_Header_Footer].doBenchmark(b)
+func Benchmark2_Nested(b *testing.B) {
+	tests[test2_Nested].doBenchmark(b)
 }

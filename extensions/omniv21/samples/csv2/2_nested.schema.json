@@ -1,0 +1,55 @@
+{
+    "parser_settings": {
+        "version": "omni.2.1",
+        "file_format_type": "csv2"
+    },
+    "file_declaration": {
+        "delimiter": ",",
+        "records": [
+            { "name": "HeaderLinesToSkip", "min": 2, "max": 2 },
+            {
+                "name": "Order", "is_target": true,
+                "columns": [
+                    { "match": "^1$" },
+                    { "name": "OrderId" },
+                    { "name": "CustomerLastName" },
+                    { "name": "CustomerFirstName" },
+                    { "name": "CustomerEmail" }
+                ],
+                "child_records": [
+                    {
+                        "name": "LineItem",
+                        "columns": [
+                            { "match": "^2$" },
+                            { "name": "OrderId" },
+                            { "name": "ItemId" },
+                            { "name": "SKU" },
+                            { "name": "Quantity" },
+                            { "name": "Price" }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "transform_declarations": {
+        "FINAL_OUTPUT": { "object": {
+            "order_id": { "xpath": "OrderId" },
+            "customer_fullname": { "custom_func": {
+                "name": "concat",
+                "args": [
+                    { "xpath": "CustomerFirstName" },
+                    { "const": " ", "keep_empty_or_null": true },
+                    { "xpath": "CustomerLastName" }
+                ]
+            }},
+            "customer_email": { "xpath": "CustomerEmail" },
+            "line_items": { "array": [ { "xpath": "LineItem", "object": {
+                "item_id": { "xpath": "ItemId" },
+                "sku": { "xpath": "SKU" },
+                "quantity": { "xpath": "Quantity", "type": "int" },
+                "price": { "xpath": "Price", "type": "float" }
+            }}]}
+        }}
+    }
+}

@@ -1,0 +1,9 @@
+LineType,OrderId,CustomerLastName,CustomerFirstName,CustomerEmail
+LineType,OrderId,ItemId,SKU,Quantity,Price
+1,OI-12345,Smith,John,js@test.org
+2,OI-12345,1,AS012,20,3.5
+2,OI-12345,2,K0208,5,17.8
+1,OI-98765,Karen,Jane,jk@test.org
+1,OI-13579,Prime,Optimus,op@autobot.ai
+2,OI-13579,1,CPU001,200,199.99
+2,OI-13579,2,ENERGON-CUBE-L,1000,17.88

@@ -9,7 +9,8 @@ import (
 	"github.com/jf-tech/omniparser/extensions/omniv21/fileformat/csv"
 	"github.com/jf-tech/omniparser/extensions/omniv21/fileformat/edi"
 	"github.com/jf-tech/omniparser/extensions/omniv21/fileformat/fixedlength"
-	fixedlengthadv "github.com/jf-tech/omniparser/extensions/omniv21/fileformat/flatfile/fixedlength"
+	csv2 "github.com/jf-tech/omniparser/extensions/omniv21/fileformat/flatfile/csv"
+	fixedlength2 "github.com/jf-tech/omniparser/extensions/omniv21/fileformat/flatfile/fixedlength"
 	"github.com/jf-tech/omniparser/extensions/omniv21/fileformat/json"
 	"github.com/jf-tech/omniparser/extensions/omniv21/fileformat/xml"
 	"github.com/jf-tech/omniparser/extensions/omniv21/transform"
@@ -87,9 +88,10 @@ func customParseFuncs(ctx *schemahandler.CreateCtx) transform.CustomParseFuncs {
 func fileFormats(ctx *schemahandler.CreateCtx) []fileformat.FileFormat {
 	formats := []fileformat.FileFormat{
 		csv.NewCSVFileFormat(ctx.Name),
+		csv2.NewCSVFileFormat(ctx.Name),
 		edi.NewEDIFileFormat(ctx.Name),
 		fixedlength.NewFixedLengthFileFormat(ctx.Name),
-		fixedlengthadv.NewFixedLengthFormat(ctx.Name),
+		fixedlength2.NewFixedLengthFormat(ctx.Name),
 		json.NewJSONFileFormat(ctx.Name),
 		xml.NewXMLFileFormat(ctx.Name),
 	}

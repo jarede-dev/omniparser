@@ -77,6 +77,10 @@ type EnvelopeDecl struct {
 	footerRegexp  *regexp.Regexp
 }
 
+func (e *EnvelopeDecl) DeclName() string {
+	return e.Name
+}
+
 func (e *EnvelopeDecl) Target() bool {
 	return e.IsTarget
 }
