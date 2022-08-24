@@ -80,7 +80,7 @@ func (r *RecordDecl) MaxOccurs() int {
 	}
 }
 
-func (r *RecordDecl) ChildRecDecls() []flatfile.RecDecl {
+func (r *RecordDecl) ChildDecls() []flatfile.RecDecl {
 	return r.childRecDecls
 }
 

@@ -131,8 +131,8 @@ func (r *HierarchyReader) Read() (*idr.Node, error) {
 		// the IDR tree, we need to add it as a child of the current RecDecl's parent, thus
 		// adding it to stackTop(1), not (0).
 		idr.AddChild(r.stackTop(1).recNode, curRecEntry.recNode)
-		if len(curRecEntry.recDecl.ChildRecDecls()) > 0 {
-			r.growStack(stackEntry{recDecl: curRecEntry.recDecl.ChildRecDecls()[0]})
+		if len(curRecEntry.recDecl.ChildDecls()) > 0 {
+			r.growStack(stackEntry{recDecl: curRecEntry.recDecl.ChildDecls()[0]})
 			continue
 		}
 		r.recDone()
@@ -154,8 +154,8 @@ func (r *HierarchyReader) readRec(recDecl RecDecl) (*idr.Node, error) {
 	// If the decl is a group, then we'll only ask RecReader to match but not creating IDR - instead
 	// we'll create an IDR node for the group decl here.
 	nonGroupDecl := recDecl
-	for nonGroupDecl.Group() && len(nonGroupDecl.ChildRecDecls()) > 0 {
-		nonGroupDecl = nonGroupDecl.ChildRecDecls()[0]
+	for nonGroupDecl.Group() && len(nonGroupDecl.ChildDecls()) > 0 {
+		nonGroupDecl = nonGroupDecl.ChildDecls()[0]
 	}
 	if nonGroupDecl.Group() {
 		// We must have a non-group solid record to perform the match; if not, it's a no
@@ -273,9 +273,9 @@ func (r *HierarchyReader) recNext() error {
 		return nil
 	}
 	cur = r.shrinkStack()
-	if cur.curChild < len(cur.recDecl.ChildRecDecls())-1 {
+	if cur.curChild < len(cur.recDecl.ChildDecls())-1 {
 		cur.curChild++
-		r.growStack(stackEntry{recDecl: cur.recDecl.ChildRecDecls()[cur.curChild]})
+		r.growStack(stackEntry{recDecl: cur.recDecl.ChildDecls()[cur.curChild]})
 		return nil
 	}
 	r.recDone()

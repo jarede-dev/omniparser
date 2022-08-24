@@ -111,7 +111,7 @@ func (e *EnvelopeDecl) MaxOccurs() int {
 	}
 }
 
-func (e *EnvelopeDecl) ChildRecDecls() []flatfile.RecDecl {
+func (e *EnvelopeDecl) ChildDecls() []flatfile.RecDecl {
 	return e.childRecDecls
 }
 
