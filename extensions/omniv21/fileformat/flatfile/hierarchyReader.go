@@ -9,39 +9,9 @@ import (
 	"github.com/jf-tech/omniparser/idr"
 )
 
-type ErrFewerThanMinOccurs struct {
-	RecDecl       RecDecl
-	ActualOcccurs int
-}
-
-// Error satisfies the error interface with a dummy text. User of this error must
-// directly access the payload and reconstruct their own context aware error.
-func (e ErrFewerThanMinOccurs) Error() string { panic("shouldn't be called") }
-
-func IsErrFewerThanMinOccurs(err error) bool {
-	switch err.(type) {
-	case ErrFewerThanMinOccurs:
-		return true
-	default:
-		return false
-	}
-}
-
-type ErrUnexpectedData struct{}
-
-func IsErrUnexpectedData(err error) bool {
-	switch err.(type) {
-	case ErrUnexpectedData:
-		return true
-	default:
-		return false
-	}
-}
-
-// Error satisfies the error interface with a dummy text. User of this error must
-// directly access the payload and reconstruct their own context aware error.
-func (e ErrUnexpectedData) Error() string { panic("shouldn't be called") }
-
+// HierarchyReader orchestrates reading, matching, and converting (to IDR) of
+// data streams of various flat file formats that (potentially) contain hierarchically
+// structured records.
 type HierarchyReader struct {
 	r               RecReader
 	stack           []stackEntry
@@ -49,14 +19,15 @@ type HierarchyReader struct {
 	targetXPathExpr *xpath.Expr
 }
 
+// NewHierarchyReader creates a new instance of a HierarchyReader.
 func NewHierarchyReader(
-	children []RecDecl, recReader RecReader, targetXPathExpr *xpath.Expr) *HierarchyReader {
+	decls []RecDecl, recReader RecReader, targetXPathExpr *xpath.Expr) *HierarchyReader {
 	r := &HierarchyReader{
 		r:               recReader,
 		stack:           make([]stackEntry, 0, initialStackDepth),
 		targetXPathExpr: targetXPathExpr,
 	}
-	rootDecl := rootDecl{children: children}
+	rootDecl := rootDecl{children: decls}
 	r.growStack(stackEntry{
 		recDecl: rootDecl,
 		recNode: idr.CreateNode(idr.DocumentNode, rootDecl.DeclName()),
@@ -67,7 +38,15 @@ func NewHierarchyReader(
 	return r
 }
 
-// Read .....
+// Read orchestrates reading, matching, and converting (to IDR) of a data stream of
+// a flat file format. Possible return values:
+// - (node, nil): a target node has been fetched successfully, ready for transformation.
+// - (nil, io.EOF): no more data to read, all operations completed successfully.
+// - (nil, ErrFewerThanMinOccurs): a record decl requires a min occurs but isn't satisified
+//   by the data stream.
+// - (nil, ErrUnexpectedData): some unknown/unexpected data encountered that isn't described
+//   by any of the record decls.
+// - (nil, other err): most likely IO failures.
 func (r *HierarchyReader) Read() (*idr.Node, error) {
 	if r.target != nil {
 		// This is just in case Release() isn't called by ingester.
@@ -89,10 +68,10 @@ func (r *HierarchyReader) Read() (*idr.Node, error) {
 			// simply keeping on moving to the next rec: we call recNext()
 			// once at a time - in case after the recNext() call, the reader
 			// yields another target node. We can safely do this (1 recNext()
-			// call at a time after we encounter EOF) is because
-			// r.r.MoreUnprocessedData() should/will repeatedly return io.EOF,
-			// once it returns io.EOF.
-			if len(r.stack) <= 1 {
+			// call at a time after we're told no more data) is because
+			// r.r.MoreUnprocessedData() should/will repeatedly return no more
+			// data after it declares so the first time.
+			if len(r.stack) <= 1 { // 1 is for the artificial root decl.
 				// If we don't have any more data, and our decl stack has been
 				// completed, then we're all done!!
 				return nil, io.EOF
@@ -105,18 +84,18 @@ func (r *HierarchyReader) Read() (*idr.Node, error) {
 		}
 		// Now at this point, we know we have more unprocessed data.
 		if len(r.stack) <= 1 {
-			// This means we currently have some unprocessed data but all the rec
-			// decls' processing is done.
+			// This means while all the rec decls' processings are done, we still
+			// have some unprocessed data.
 			return nil, ErrUnexpectedData{}
 		}
 		curRecEntry := r.stackTop()
 		node, err := r.readRec(curRecEntry.recDecl)
-		// Note given we have unprocessed data, r.r.ReadRec should never return
+		// Note given we have unprocessed data, r.readRec should never return
 		// io.EOF. So any error encountered, we directly bail out.
 		if err != nil {
 			return nil, err
 		}
-		// if no err returned from r.r.ReadRec(), but node returned is nil, that means
+		// if no err returned from r.readRec, but node returned is nil, that means
 		// the current data isn't a match for the curRecEntry.recDecl. So the
 		// curRecEntry.recDecl instance is considered done.
 		if node == nil {
@@ -139,6 +118,8 @@ func (r *HierarchyReader) Read() (*idr.Node, error) {
 	}
 }
 
+// Release deallocates/recycles the cached IDR node. If the passed in IDR node happens to be
+// the cached target node, we need to reset/clear the cached target node pointer.
 func (r *HierarchyReader) Release(n *idr.Node) {
 	if n == nil {
 		return
@@ -149,6 +130,7 @@ func (r *HierarchyReader) Release(n *idr.Node) {
 	idr.RemoveAndReleaseTree(n)
 }
 
+// readRec tries to read/match unprocessed data against the passed-in record decl.
 func (r *HierarchyReader) readRec(recDecl RecDecl) (*idr.Node, error) {
 	// If the decl is a solid non-group decl, then we will ask RecReader to match and create IDR.
 	// If the decl is a group, then we'll only ask RecReader to match but not creating IDR - instead
@@ -182,7 +164,7 @@ type stackEntry struct {
 	recDecl  RecDecl   // the current stack entry's record decl
 	recNode  *idr.Node // the current stack entry record's IDR node
 	curChild int       // which child record is the current record is processing.
-	occurred int       // how many times the current record is fully processed.
+	occurred int       // how many instances the current record has encountered/processed.
 }
 
 const (
@@ -225,12 +207,13 @@ func (r *HierarchyReader) growStack(e stackEntry) {
 	r.stack = append(r.stack, e)
 }
 
-// recDone wraps up the processing of an instance of current record (which includes the processing of
-// the instances of its child records). recDone marks streaming target if necessary. If the number of
-// instance occurrences is over the current record's max limit, recDone calls recNext to move to the
-// next record in sequence; If the number of instances is still within max limit, recDone does no more
-// action so the current record will remain on top of the stack and potentially process more instances
-// of this record. Note: recDone is potentially recursive: recDone -> recNext -> recDone -> ...
+// recDone wraps up the processing of an instance of current record (which includes the processing
+// of all the instances of its child records). recDone marks streaming target if necessary. If the
+// number of instance occurrences is over the current record's max limit, recDone calls recNext to
+// move to the next record in sequence; If the number of instances is still within max limit,
+// recDone does no more action so the current record will remain on top of the stack and potentially
+// process for more instances of this record. Note: recDone is potentially recursive:
+//   recDone -> recNext -> recDone -> ...
 func (r *HierarchyReader) recDone() {
 	cur := r.stackTop()
 	cur.curChild = 0
@@ -256,18 +239,22 @@ func (r *HierarchyReader) recDone() {
 	// and the only path recNext() can fail is to have
 	// `cur.occurred < cur.recDecl.MinOccurs()`, which means
 	// the calling to recNext() from recDone() will never fail,
-	// if our validation makes sure min<=max.
+	// assuming our file format specific validation makes sure min <= max.
 	_ = r.recNext()
 }
 
-// recNext is called when the top-of-stack (aka current) record is done its full processing and needs to move
-// to the next record. If the current record has a subsequent sibling, that sibling will be the next record;
-// If not, it indicates the current record's parent record is fully done its processing, thus parent's recDone
-// is called. Note: recNext is potentially recursive: recNext -> recDone -> recNext -> ...
+// recNext is called when the top-of-stack (aka current) record is done its full processing and
+// needs to move to the next record. If the current record has a subsequent sibling, that sibling
+// will be the next record; If not, it indicates the current record's parent record is fully done
+// its processing, thus parent's recDone is called. Note: recNext is potentially recursive:
+//     recNext -> recDone -> recNext -> ...
 func (r *HierarchyReader) recNext() error {
 	cur := r.stackTop()
 	if cur.occurred < cur.recDecl.MinOccurs() {
-		return ErrFewerThanMinOccurs{RecDecl: cur.recDecl, ActualOcccurs: cur.occurred}
+		return ErrFewerThanMinOccurs{
+			RecDecl:       cur.recDecl,
+			ActualOcccurs: cur.occurred,
+		}
 	}
 	if len(r.stack) <= 1 {
 		return nil
@@ -281,3 +268,45 @@ func (r *HierarchyReader) recNext() error {
 	r.recDone()
 	return nil
 }
+
+// ErrFewerThanMinOccurs indicates the input data doesn't have the required minimum
+// number of instances for a particular record decl.
+type ErrFewerThanMinOccurs struct {
+	RecDecl       RecDecl
+	ActualOcccurs int
+}
+
+// Error is to satisfy the error interface. Receivers of this error can/should consider
+// constructing their own file format specific error based on the payload of this error.
+func (e ErrFewerThanMinOccurs) Error() string {
+	return fmt.Sprintf("decl '%s' requires %d min occurs but only got %d",
+		e.RecDecl.DeclName(), e.RecDecl.MinOccurs(), e.ActualOcccurs)
+}
+
+// IsErrFewerThanMinOccurs tells whether a given err is of ErrFewerThanMinOccurs type.
+func IsErrFewerThanMinOccurs(err error) bool {
+	switch err.(type) {
+	case ErrFewerThanMinOccurs:
+		return true
+	default:
+		return false
+	}
+}
+
+// ErrUnexpectedData indicates there is unprocessed and unexpected data from the inpput data
+// stream that no record decl can match.
+type ErrUnexpectedData struct{}
+
+// IsErrUnexpectedData tells whether a given err is of ErrUnexpectedData type.
+func IsErrUnexpectedData(err error) bool {
+	switch err.(type) {
+	case ErrUnexpectedData:
+		return true
+	default:
+		return false
+	}
+}
+
+// Error is to satisfy the error interface. Receivers of this error can/should consider
+// constructing their own file format specific error based on the payload of this error.
+func (e ErrUnexpectedData) Error() string { return "unexpected data" }
