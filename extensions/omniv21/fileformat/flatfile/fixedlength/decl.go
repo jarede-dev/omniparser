@@ -10,12 +10,12 @@ import (
 	"github.com/jf-tech/omniparser/extensions/omniv21/fileformat/flatfile"
 )
 
-// ColumnDecl describes the column structure of an envelope.
+// ColumnDecl describes a column of an envelope.
 type ColumnDecl struct {
 	Name        string  `json:"name,omitempty"`
-	StartPos    int     `json:"start_pos"` // 1-based. and rune-based.
-	Length      int     `json:"length"`    // rune-based length.
-	LinePattern *string `json:"line_pattern"`
+	StartPos    int     `json:"start_pos,omitempty"` // 1-based. and rune-based.
+	Length      int     `json:"length,omitempty"`    // rune-based length.
+	LinePattern *string `json:"line_pattern,omitempty"`
 
 	linePatternRegexp *regexp.Regexp
 }
@@ -39,7 +39,7 @@ func (c *ColumnDecl) lineToColumnValue(line []byte) string {
 	// Then from that position, count c.Length runes and that's the string value we need.
 	// Note if c.Length is longer than what's left in the line, we'll simply take all of
 	// the remaining line (and no error here, since we haven't yet seen a useful case where
-	// we need to be this strict.)
+	// we need to be excessively strict.)
 	lenCount := c.Length
 	i := 0
 	for lenCount > 0 && i < len(line) {
@@ -56,14 +56,15 @@ const (
 )
 
 // EnvelopeDecl describes an envelope of a fixed-length input.
-// if rows/header/footer none specified, then default to rows = 1
-// scheam validation guarantees rows/header cannot be specified at the same time.
-// footer is optional.
+// If Rows/Header/Footer are all nil, then it defaults to Rows = 1.
+// If Rows specified, then Header/Footer must be nil. (JSON schema validation will ensure this.)
+// If Header is specified, Rows must be nil. (JSON schema validation will ensure this.)
+// Footer is optional; If not specified, Header will be used for a single-line envelope matching.
 type EnvelopeDecl struct {
 	Name     string          `json:"name,omitempty"`
-	Rows     *int            `json:"rows,omitempty"`   // must not specify on envelope_group
-	Header   *string         `json:"header,omitempty"` // must not specify on envelope_group
-	Footer   *string         `json:"footer,omitempty"` // must not specify on envelope_group
+	Rows     *int            `json:"rows,omitempty"`
+	Header   *string         `json:"header,omitempty"`
+	Footer   *string         `json:"footer,omitempty"`
 	Type     *string         `json:"type,omitempty"`
 	IsTarget bool            `json:"is_target,omitempty"`
 	Min      *int            `json:"min,omitempty"`
@@ -89,7 +90,7 @@ func (e *EnvelopeDecl) Group() bool {
 	return e.Type != nil && *e.Type == typeGroup
 }
 
-// min defaults to 0
+// MinOccurs defaults to 0. Fixed-length input most common scenario is min=0/max=unbounded.
 func (e *EnvelopeDecl) MinOccurs() int {
 	switch e.Min {
 	case nil:
@@ -99,7 +100,7 @@ func (e *EnvelopeDecl) MinOccurs() int {
 	}
 }
 
-// max defaults to -1, aka unbounded
+// MaxOccurs defaults to unbounded. Fixed-length input most common scenario is min=0/max=unbounded.
 func (e *EnvelopeDecl) MaxOccurs() int {
 	switch {
 	case e.Max == nil:
@@ -116,11 +117,11 @@ func (e *EnvelopeDecl) ChildDecls() []flatfile.RecDecl {
 }
 
 func (e *EnvelopeDecl) rowsBased() bool {
-	// if header/footer used, header must be specified; if header is not, then it's rows based.
+	// for header/footer based envelope, header must be specified; otherwise, it's rows based.
 	return e.Header == nil
 }
 
-// rows defaults to 1.
+// rows() defaults to 1. Fixed-length input most common scenario is rows-based single line envelope.
 func (e *EnvelopeDecl) rows() int {
 	if !e.rowsBased() {
 		panic(fmt.Sprintf("envelope '%s' is not rows based", e.fqdn))
@@ -138,6 +139,9 @@ func (e *EnvelopeDecl) matchHeader(line []byte) bool {
 	return e.headerRegexp.Match(line)
 }
 
+// Footer is optional. If not specified, it always matches. Thus for a header/footer envelope,
+// if the footer isn't specified, it effectively becomes a single-row envelope matched by header,
+// given that after the header matches a line, matchFooter is called on the same line.
 func (e *EnvelopeDecl) matchFooter(line []byte) bool {
 	if e.footerRegexp == nil {
 		return true
@@ -156,7 +160,7 @@ func toFlatFileRecDecls(es []*EnvelopeDecl) []flatfile.RecDecl {
 	return ret
 }
 
-// FileDecl describes fixed-length specific schema settings for omniparser reader.
+// FileDecl describes fixed-length schema `file_declaration` setting.
 type FileDecl struct {
 	Envelopes []*EnvelopeDecl `json:"envelopes,omitempty"`
 }
