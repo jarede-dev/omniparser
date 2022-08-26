@@ -91,7 +91,7 @@ func fileFormats(ctx *schemahandler.CreateCtx) []fileformat.FileFormat {
 		csv2.NewCSVFileFormat(ctx.Name),
 		edi.NewEDIFileFormat(ctx.Name),
 		fixedlength.NewFixedLengthFileFormat(ctx.Name),
-		fixedlength2.NewFixedLengthFormat(ctx.Name),
+		fixedlength2.NewFixedLengthFileFormat(ctx.Name),
 		json.NewJSONFileFormat(ctx.Name),
 		xml.NewXMLFileFormat(ctx.Name),
 	}

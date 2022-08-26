@@ -13,6 +13,8 @@ import (
 	"github.com/jf-tech/omniparser/errs"
 	"github.com/jf-tech/omniparser/extensions/omniv21/fileformat"
 	"github.com/jf-tech/omniparser/extensions/omniv21/transform"
+	v21validation "github.com/jf-tech/omniparser/extensions/omniv21/validation"
+	"github.com/jf-tech/omniparser/validation"
 )
 
 const (
@@ -23,8 +25,8 @@ type fixedLengthFormat struct {
 	schemaName string
 }
 
-// NewFixedLengthFormat creates a FileFormat for 'fixedlength2'.
-func NewFixedLengthFormat(schemaName string) fileformat.FileFormat {
+// NewFixedLengthFileFormat creates a FileFormat for 'fixedlength2'.
+func NewFixedLengthFileFormat(schemaName string) fileformat.FileFormat {
 	return &fixedLengthFormat{schemaName: schemaName}
 }
 
@@ -38,18 +40,21 @@ func (f *fixedLengthFormat) ValidateSchema(
 	if format != fileFormatFixedLength {
 		return nil, errs.ErrSchemaNotSupported
 	}
-	/* TODO
-	err := validation.SchemaValidate(f.schemaName, schemaContent, v21validation.JSONSchemaFixedLengthAdvFileDeclaration)
+	err := validation.SchemaValidate(
+		f.schemaName, schemaContent, v21validation.JSONSchemaFixedLength2FileDeclaration)
 	if err != nil {
 		// err is already context formatted.
 		return nil, err
-	}*/
+	}
 	var runtime fixedLengthFormatRuntime
 	_ = json.Unmarshal(schemaContent, &runtime) // JSON schema validation earlier guarantees Unmarshal success.
-	err := f.validateFileDecl(runtime.Decl)
+	err = f.validateFileDecl(runtime.Decl)
 	if err != nil {
 		// err is already context formatted.
 		return nil, err
+	}
+	if finalOutputDecl == nil {
+		return nil, f.FmtErr("'FINAL_OUTPUT' is missing")
 	}
 	runtime.XPath = strings.TrimSpace(strs.StrPtrOrElse(finalOutputDecl.XPath, ""))
 	if runtime.XPath != "" {
