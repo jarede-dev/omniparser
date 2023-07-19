@@ -9,9 +9,14 @@ Omniparser is a native Golang ETL parser that ingests input data of various form
 XML, EDI/X12/EDIFACT, JSON**, and custom formats) in streaming fashion and transforms data into desired JSON output
 based on a schema written in JSON.
 
-**Please kindly consider sponsoring the project to fund future development and issue resolutions**: https://github.com/sponsors/jf-tech
-
 Min Golang Version: 1.14
+
+## Licenses and Sponsorship
+Omniparser is publicly available under [MIT License](./LICENSE).
+[Individual and corporate sponsorships](https://github.com/sponsors/jf-tech/) are welcome and gratefully
+appreciated, and will be listed in the [SPONSORS](./sponsors/SPONSORS.md) page.
+[Company-level sponsors](https://github.com/sponsors/jf-tech/) get additional benefits and supports
+granted in the [COMPANY LICENSE](./sponsors/COMPANY_LICENSE.md).
 
 ## Documentation
 
@@ -46,12 +51,12 @@ Examples:
 In the example folders above you will find pairs of input files and their schema files. Then in the
 `.snapshots` sub directory, you'll find their corresponding output files.
 
-## Online Playground
+## Online Playground (not functioning)
 
-Use https://omniparser.herokuapp.com/ (may need to wait for a few seconds for heroku instance to wake up)
-for trying out schemas and inputs, yours or existing samples, to see how ingestion and transform work.
+~~Use [The Playground](https://omniparser-prod-omniparser-qd0sj4.mo2.mogenius.io/)  (may need to wait for a few seconds for instance to wake up)
+for trying out schemas and inputs, yours or existing samples, to see how ingestion and transform work.~~
 
-![](./cli/cmd/web/playground-demo.gif)
+As for now (2023/03/14), all of our previous free docker hosting solutions went away and we haven't found another one yet. For now please clone the repo and use `./cli.sh` as described in the [Getting Started](./doc/gettingstarted.md) page.
 
 ## Why
 - No good ETL transform/parser library exists in Golang.
@@ -83,8 +88,8 @@ back-compatibility, it is just removed from all public docs and samples).
         - `'keep_leading_trailing_space'` -> `'no_trim'`
     - Changed how we handle custom functions: previously we always use strings as in param type as well as result param
     type. Not anymore, all types are supported for custom function in and out params.
-    - Changed the way how we package custom functions for extensions: previously we collect custom functions from all
-    extensions and then pass all of them to the extension that is used; This feels weird, now changed to only the custom
+    - Changed the way we package custom functions for extensions: previously we collected custom functions from all
+    extensions and then passed all of them to the extension that is used; this feels weird, now only the custom
     functions included in a particular extension are used in that extension.
     - Deprecated/removed most of the custom functions in favor of using 'javascript'.
     - A number of package renaming.
